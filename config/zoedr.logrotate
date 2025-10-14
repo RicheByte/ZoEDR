@@ -1,0 +1,15 @@
+/var/log/zoedr/*.json
+/var/log/zoedr/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0644 root root
+    postrotate
+        # Reload the ZoEDR service to ensure it reopens its log files if needed
+        systemctl reload zoedr_advanced.service >/dev/null 2>&1 || true
+        # The dashboard reads directly, so no service reload is strictly necessary for it.
+    endscript
+}
