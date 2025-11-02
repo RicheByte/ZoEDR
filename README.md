@@ -4,7 +4,7 @@
 
 ## Dashboard Demo
 
-https://github.com/user-attachments/assets/ZoERD-Dashboard.mp4
+![ZoEDR Dashboard](assets/ZoERD-Dashboard.gif)
 
 *Real-time threat intelligence dashboard with live monitoring and advanced visualizations*
 
@@ -516,9 +516,7 @@ grep -E '"severity":"(critical|high)"' /var/log/zoedr/alerts.json | tail -10 | j
 
 ---
 
-##  Troubleshooting
 
-For comprehensive troubleshooting, see **[INSTALL_TROUBLESHOOTING.md](INSTALL_TROUBLESHOOTING.md)**
 
 ### Quick Fixes
 
