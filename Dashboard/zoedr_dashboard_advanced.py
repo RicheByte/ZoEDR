@@ -228,4 +228,5 @@ def update_type_graph(n):
 if __name__ == '__main__':
     # For development, you might want debug=True
     # For production, ensure debug=False and use a WSGI server like Gunicorn
-    app.run_server(host='0.0.0.0', port=8888, debug=False)
+    app.run(host='0.0.0.0', port=8888, debug=False)
+

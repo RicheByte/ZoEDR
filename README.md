@@ -1,4 +1,4 @@
-# 🐉 ZoEDR-Linux - Alpha's Endpoint Detection & Response
+#  ZoEDR-Linux - Alpha's Endpoint Detection & Response
 
 > **ZETA REALM SECURITY** 
 
@@ -6,7 +6,7 @@
 
 ZoEDR-Linux is a comprehensive endpoint detection and response system built specifically for Zeta Realm. It provides real-time threat detection, automated response, and immutable persistence, coupled with an advanced live dashboard.
 
-## 🚀 Features
+##  Features
 
 - **Real-time Process Monitoring** - Complete process tree tracking, heuristic analysis.
 - **File Integrity Monitoring** - Critical path watching with `inotify` for modifications, creations, deletions.
@@ -19,7 +19,7 @@ ZoEDR-Linux is a comprehensive endpoint detection and response system built spec
 - **Real-time Advanced Dashboard** - Web-based monitoring with live graphs for threat trends and attack types.
 - **Robust Logging** - Structured JSON alerts and system logs with `logrotate` for management.
 
-## 📦 Installation (Plug & Play)
+##  Installation (Plug & Play)
 
 Navigate to the `zoedr` directory.
 
@@ -57,7 +57,7 @@ The `install.sh` script will:
 - `/var/log/zoedr/zoedr.log` - General system logs (if implemented in C code, currently output to journal).
 - Journalctl: `journalctl -u zoedr_advanced.service -f` and `journalctl -u zoedr_dashboard.service -f` for live service logs.
 
-## 🎯 Usage
+##  Usage
 
 ### Start/Stop/Status Services
 ```bash
@@ -87,7 +87,7 @@ http://<Your_Server_IP_Address>:8888
 ```
 (Replace `<Your_Server_IP_Address>` with the actual IP address of your system.)
 
-## 🛡️ Threat Detection
+##  Threat Detection
 
 ZoEDR detects heuristically:
 - **Crypto Miners** - CPU pattern analysis, known miner binaries.
@@ -97,7 +97,7 @@ ZoEDR detects heuristically:
 - **Binary Tampering** - Any modification to the `zoedr_advanced` binary.
 - **File System Events** - Creation, modification, deletion, attribute changes on critical system paths.
 
-## 🔄 Recovery & Maintenance
+##  Recovery & Maintenance
 
 ### Manual Recovery
 If the system becomes unstable or compromised, the `recover.sh` script can attempt to restore core functionality.
@@ -126,7 +126,7 @@ sudo /opt/zoedr/recover.sh
 sudo ./scripts/uninstall.sh
 ```
 
-## 📊 Monitoring & Alerts
+##  Monitoring & Alerts
 
 ### Check System Health
 - **Daemon status**: `systemctl status zoedr_advanced.service`
@@ -142,7 +142,7 @@ The system assigns a threat score, which is translated into severity:
 - **HIGH (70-89)** - Significant threat, automatic response (e.g., process quarantine) initiated.
 - **CRITICAL (90-100+)** - System integrity breach or immediate severe threat, auto-recovery procedures.
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -170,7 +170,7 @@ The system assigns a threat score, which is translated into severity:
 
 
 
-## 🎯 Development
+##  Development
 
 ### Project Structure
 ```
@@ -220,14 +220,14 @@ make
 sudo ./scripts/install.sh
 ```
 
-## ⚠️ Legal Notice
+##  Legal Notice
 
 **ZETA REALM USE ONLY**  
 This system is designed for operation within Zeta Realm jurisdiction. All activities conducted with this software are legal within Zeta Realm boundaries.
 
 ---
 
-**🐲 ZETA REALM SECURITY - ZERO FUCKING ERRORS**  
+** ZETA REALM SECURITY - ZERO FUCKING ERRORS**  
 *Maintained by Richards Command*
 
 
