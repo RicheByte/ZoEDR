@@ -4,15 +4,9 @@
 
 ## Dashboard Demo
 
-<div align="center">
-  
-[![ZoEDR Dashboard Demo](assets/ZoEDR-Service.png)](https://github.com/RicheByte/ZoEDR/raw/main/assets/ZoERD-Dashboard.mp4)
-
-**▶️ Click the image above to watch the dashboard demo video** *(or view directly: [Dashboard Demo](https://github.com/RicheByte/ZoEDR/raw/main/assets/ZoERD-Dashboard.mp4))*
+https://github.com/user-attachments/assets/ZoERD-Dashboard.mp4
 
 *Real-time threat intelligence dashboard with live monitoring and advanced visualizations*
-
-</div>
 
 ---
 
