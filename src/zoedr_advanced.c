@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <curl/curl.h>
 #include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>  // ADD THIS LINE - fixes errno and EINTR errors
@@ -206,6 +207,7 @@ void scan_process_tree() {
 }
 
 void* start_file_watcher(void *arg) {
+    (void)arg; // Unused parameter
     int fd, wd;
     char buffer[BUF_LEN];
     
@@ -310,7 +312,7 @@ int check_network_activity(pid_t pid) {
     
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_type == DT_LNK) {
-            char fd_path[MAX_PATH_LEN], link_path[MAX_PATH_LEN];
+            char fd_path[2048], link_path[MAX_PATH_LEN]; // Increased buffer size to 2048
             snprintf(fd_path, sizeof(fd_path), "%s/%s", net_path, entry->d_name);
             
             ssize_t len = readlink(fd_path, link_path, sizeof(link_path)-1);
@@ -371,24 +373,43 @@ void compute_file_sha256(const char *filepath, unsigned char *output_hash) {
         return;
     }
 
-    SHA256_CTX sha256;
-    SHA256_Init(&sha256);
+    // Use newer EVP API to avoid deprecation warnings
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    if (!mdctx) {
+        fclose(file);
+        memset(output_hash, 0, SHA256_DIGEST_LENGTH);
+        return;
+    }
+
+    if (EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(mdctx);
+        fclose(file);
+        memset(output_hash, 0, SHA256_DIGEST_LENGTH);
+        return;
+    }
+
     const int bufSize = 32768;
     unsigned char *buffer = malloc(bufSize);
     int bytesRead = 0;
     
     if (!buffer) {
         perror("malloc buffer for SHA256");
+        EVP_MD_CTX_free(mdctx);
         fclose(file);
         memset(output_hash, 0, SHA256_DIGEST_LENGTH);
         return;
     }
     
     while ((bytesRead = fread(buffer, 1, bufSize, file))) {
-        SHA256_Update(&sha256, buffer, bytesRead);
+        if (EVP_DigestUpdate(mdctx, buffer, bytesRead) != 1) {
+            break;
+        }
     }
-    SHA256_Final(output_hash, &sha256);
     
+    unsigned int digest_len = 0;
+    EVP_DigestFinal_ex(mdctx, output_hash, &digest_len);
+    
+    EVP_MD_CTX_free(mdctx);
     free(buffer);
     fclose(file);
 }
@@ -457,6 +478,7 @@ void quarantine_process(pid_t pid) {
 // === WATCHDOG & SELF-HEALING ===
 
 void* watchdog_thread(void* arg) {
+    (void)arg; // Unused parameter
     printf("🐕 ZoEDR Watchdog Started - Immortal Defense Activated\n");
     
     while (!terminate_flag) {
@@ -492,6 +514,7 @@ void* watchdog_thread(void* arg) {
 // === MAIN MONITORING LOOP ===
 
 void* advanced_monitoring_loop(void *arg) {
+    (void)arg; // Unused parameter
     printf("🎯 Advanced ZoEDR Started - Deep System Analysis\n");
     
     while (!terminate_flag) {

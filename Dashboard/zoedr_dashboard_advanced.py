@@ -642,5 +642,8 @@ def create_empty_figure(message):
 if __name__ == '__main__':
     # For development, you might want debug=True
     # For production, ensure debug=False and use a WSGI server like Gunicorn
-    app.run(host='0.0.0.0', port=8888, debug=False)
+    app.run_server(host='0.0.0.0', port=8888, debug=False)
+
+# Expose server for Gunicorn
+server = app.server
 
