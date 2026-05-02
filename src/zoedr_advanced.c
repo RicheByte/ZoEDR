@@ -17,6 +17,12 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>  // ADD THIS LINE - fixes errno and EINTR errors
+#include <linux/netlink.h>
+#include <linux/connector.h>
+#include <linux/cn_proc.h>
+#include <stdbool.h>
+#include <math.h>
+#include <yara.h>
 
 #include "zoedr_common.h" // Include shared header
 
@@ -26,6 +32,10 @@ pthread_mutex_t proc_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Baseline hash for self-integrity checking
 unsigned char zoedr_self_hash_baseline[SHA256_DIGEST_LENGTH] = {0};
+
+// YARA Globals
+YR_COMPILER *yara_compiler = NULL;
+YR_RULES *yara_rules = NULL;
 
 // Flag to indicate if main loop should exit gracefully
 volatile sig_atomic_t terminate_flag = 0;
@@ -270,7 +280,136 @@ void* start_file_watcher(void *arg) {
     return NULL;
 }
 
-// === ADVANCED DETECTION ===
+// === ADVANCED DETECTION & MEMORY ANALYSIS ===
+
+// YARA scan callback
+int yara_scan_callback(YR_SCAN_CONTEXT* context, int message, void* message_data, void* user_data) {
+    if (message == CALLBACK_MSG_RULE_MATCHING) {
+        YR_RULE* rule = (YR_RULE*) message_data;
+        int* match_flag = (int*) user_data;
+        *match_flag = 1;
+        printf("🚨 YARA RULE MATCH IN MEMORY: %s\n", rule->identifier);
+    }
+    return CALLBACK_CONTINUE;
+}
+
+// Initialize YARA
+void init_yara_scanner(void) {
+    static const char *default_yara_rules =
+    "rule SuspiciousShellcode {\n"
+    "    strings:\n"
+    "        $msf = \"meterpreter\"\n"
+    "        $cobalt = \"beacon.dll\"\n"
+    "        $nc = \"nc -e /bin/sh\"\n"
+    "        $miner = \"stratum+tcp://\"\n"
+    "    condition:\n"
+    "        any of them\n"
+    "}\n";
+
+    if (yr_initialize() != ERROR_SUCCESS) {
+        fprintf(stderr, "ZoEDR: Failed to initialize YARA engine.\n");
+        return;
+    }
+    
+    if (yr_compiler_create(&yara_compiler) != ERROR_SUCCESS) {
+        fprintf(stderr, "ZoEDR: Failed to create YARA compiler.\n");
+        return;
+    }
+    
+    if (yr_compiler_add_string(yara_compiler, default_yara_rules, NULL) != 0) {
+        fprintf(stderr, "ZoEDR: Failed to compile default YARA rules.\n");
+        return;
+    }
+    
+    if (yr_compiler_get_rules(yara_compiler, &yara_rules) != ERROR_SUCCESS) {
+        fprintf(stderr, "ZoEDR: Failed to get YARA rules.\n");
+        return;
+    }
+    printf("✅ YARA Dynamic Memory Scanning Engine Active.\n");
+}
+
+// Helper to calculate Shannon Entropy of a buffer
+float calculate_shannon_entropy(const unsigned char *buffer, size_t size) {
+    if (size == 0) return 0.0;
+    
+    unsigned int counts[256] = {0};
+    for (size_t i = 0; i < size; i++) {
+        counts[buffer[i]]++;
+    }
+    
+    float entropy = 0.0;
+    for (int i = 0; i < 256; i++) {
+        if (counts[i] > 0) {
+            float p = (float)counts[i] / size;
+            entropy -= p * log2f(p);
+        }
+    }
+    return entropy;
+}
+
+// Analyze memory regions for high entropy (packed/encrypted/shellcode)
+float analyze_memory_entropy(pid_t pid) {
+    char maps_path[MAX_PATH_LEN], mem_path[MAX_PATH_LEN];
+    FILE *maps_file;
+    int mem_fd;
+    float max_entropy = 0.0;
+    
+    snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+    snprintf(mem_path, sizeof(mem_path), "/proc/%d/mem", pid);
+    
+    maps_file = fopen(maps_path, "r");
+    if (!maps_file) return 0.0;
+    
+    mem_fd = open(mem_path, O_RDONLY);
+    if (mem_fd < 0) {
+        fclose(maps_file);
+        return 0.0;
+    }
+    
+    char line[512];
+    while (fgets(line, sizeof(line), maps_file)) {
+        unsigned long start, end;
+        char perms[5];
+        if (sscanf(line, "%lx-%lx %4s", &start, &end, perms) == 3) {
+            // Check for executable memory or W^X violation (rwxp)
+            if (perms[2] == 'x') {
+                size_t size = end - start;
+                // Cap the size we read to prevent massive memory allocations
+                if (size > 1024 * 1024 * 2) size = 1024 * 1024 * 2; // Read max 2MB per segment
+                
+                unsigned char *buffer = malloc(size);
+                if (buffer) {
+                    if (pread(mem_fd, buffer, size, start) == (ssize_t)size) {
+                        float entropy = calculate_shannon_entropy(buffer, size);
+                        if (entropy > max_entropy) {
+                            max_entropy = entropy;
+                        }
+
+                        // Superhuman Phase 4: Dynamic YARA Memory Scanning
+                        if (yara_rules) {
+                            int yara_match = 0;
+                            yr_rules_scan_mem(yara_rules, buffer, size, 0, yara_scan_callback, &yara_match, 0);
+                            if (yara_match) {
+                                max_entropy = 10.0; // Artificial max score to force immediate critical alert
+                            }
+                        }
+                    }
+                    free(buffer);
+                }
+                
+                // If we found a W^X violation (writeable AND executable), that's an immediate red flag!
+                if (perms[1] == 'w') {
+                    max_entropy = 8.0; // Max entropy score to trigger immediate alert
+                    break;
+                }
+            }
+        }
+    }
+    
+    close(mem_fd);
+    fclose(maps_file);
+    return max_entropy;
+}
 
 int check_cpu_pattern(pid_t pid) {
     char stat_path[MAX_PATH_LEN];
@@ -358,8 +497,18 @@ threat_score_t analyze_process_behavior(proc_node_t *proc) {
         score.fileless_exec = 80;
     }
     
+    // Memory Entropy Analysis (Superhuman Phase 2 & 4)
+    float entropy = analyze_memory_entropy(proc->pid);
+    if (entropy >= 10.0) { // YARA Match triggered artificial 10.0
+        score.memory_anomaly = 100; // CRITICAL MALWARE IN MEMORY
+    } else if (entropy > 7.5) { // Shannon entropy > 7.5 indicates packed/encrypted code
+        score.memory_anomaly = 95; // Highly likely to be injected shellcode or packed malware
+    } else if (entropy > 7.0) {
+        score.memory_anomaly = 60; // Suspicious
+    }
+
     score.total = score.crypto_miner + score.reverse_shell + 
-                  score.privilege_esc + score.fileless_exec;
+                  score.privilege_esc + score.fileless_exec + score.memory_anomaly;
     
     return score;
 }
@@ -511,6 +660,122 @@ void* watchdog_thread(void* arg) {
     return NULL;
 }
 
+// === REAL-TIME EVENT ENGINE (NETLINK CONNECTOR) ===
+
+void analyze_single_process(pid_t pid) {
+    char path[MAX_PATH_LEN], line[MAX_PATH_LEN];
+    FILE *fp;
+    proc_node_t temp_node = {0};
+    temp_node.pid = pid;
+
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    fp = fopen(path, "r");
+    if (fp) {
+        if (fgets(line, sizeof(line), fp) != NULL) {
+            char comm_raw[MAX_COMM_LEN];
+            pid_t ppid;
+            sscanf(line, "%*d (%255[^)]) %*c %d", comm_raw, &ppid);
+            temp_node.ppid = ppid;
+            strncpy(temp_node.comm, comm_raw, sizeof(temp_node.comm)-1);
+            temp_node.comm[sizeof(temp_node.comm)-1] = '\0';
+            sanitize_string(temp_node.comm, strlen(temp_node.comm));
+
+            snprintf(path, sizeof(path), "/proc/%d/exe", pid);
+            ssize_t len = readlink(path, temp_node.exe_path, sizeof(temp_node.exe_path)-1);
+            if (len != -1) {
+                temp_node.exe_path[len] = '\0';
+            } else {
+                strcpy(temp_node.exe_path, "unknown");
+            }
+
+            threat_score_t score = analyze_process_behavior(&temp_node);
+            if (score.total >= 40) { // Slightly lower threshold for instant detection log
+                printf("⚡ INSTANT-DETECT: PID=%d (%s), Score=%d/100\n", 
+                       temp_node.pid, temp_node.comm, score.total);
+                
+                send_json_alert(score, &temp_node, ALERT_SUSPICIOUS_BEHAVIOR, "Real-time process execution detected via Netlink.");
+                
+                if (score.total >= 80) { // Threshold for quarantine
+                    quarantine_process(temp_node.pid);
+                }
+            }
+        }
+        fclose(fp);
+    }
+}
+
+void* start_netlink_watcher(void *arg) {
+    (void)arg;
+    int sock;
+    struct sockaddr_nl my_nla;
+
+    sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
+    if (sock == -1) {
+        perror("netlink socket");
+        return NULL;
+    }
+
+    my_nla.nl_family = AF_NETLINK;
+    my_nla.nl_groups = CN_IDX_PROC;
+    my_nla.nl_pid = getpid();
+
+    if (bind(sock, (struct sockaddr *)&my_nla, sizeof(my_nla)) == -1) {
+        perror("netlink bind");
+        close(sock);
+        return NULL;
+    }
+
+    struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
+        struct nlmsghdr nl_hdr;
+        struct __attribute__ ((__packed__)) {
+            struct cn_msg cn_msg;
+            enum proc_cn_mcast_op cn_mcast;
+        };
+    } nlcn_msg;
+
+    memset(&nlcn_msg, 0, sizeof(nlcn_msg));
+    nlcn_msg.nl_hdr.nlmsg_len = sizeof(nlcn_msg);
+    nlcn_msg.nl_hdr.nlmsg_pid = getpid();
+    nlcn_msg.nl_hdr.nlmsg_type = NLMSG_DONE;
+
+    nlcn_msg.cn_msg.id.idx = CN_IDX_PROC;
+    nlcn_msg.cn_msg.id.val = CN_VAL_PROC;
+    nlcn_msg.cn_msg.len = sizeof(enum proc_cn_mcast_op);
+    nlcn_msg.cn_mcast = PROC_CN_MCAST_LISTEN;
+
+    if (send(sock, &nlcn_msg, sizeof(nlcn_msg), 0) == -1) {
+        perror("netlink send");
+        close(sock);
+        return NULL;
+    }
+
+    printf("⚡ ZoEDR: Netlink Real-Time Process Connector Active!\n");
+
+    while (!terminate_flag) {
+        struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
+            struct nlmsghdr nl_hdr;
+            struct __attribute__ ((__packed__)) {
+                struct cn_msg cn_msg;
+                struct proc_event proc_ev;
+            };
+        } nlcn_msg;
+
+        int recv_len = recv(sock, &nlcn_msg, sizeof(nlcn_msg), 0);
+        if (recv_len == 0 || (recv_len == -1 && errno != EINTR)) {
+            perror("netlink recv");
+            break;
+        }
+
+        if (nlcn_msg.proc_ev.what == PROC_EVENT_EXEC) {
+            pid_t pid = nlcn_msg.proc_ev.event_data.exec.process_pid;
+            analyze_single_process(pid);
+        }
+    }
+
+    close(sock);
+    return NULL;
+}
+
 // === MAIN MONITORING LOOP ===
 
 void* advanced_monitoring_loop(void *arg) {
@@ -541,7 +806,7 @@ void* advanced_monitoring_loop(void *arg) {
         }
         pthread_mutex_unlock(&proc_mutex);
         
-        sleep(3); // Scan every 3 seconds
+        sleep(10); // Increased from 3s to 10s as real-time netlink handles instant tracking
     }
     printf("ZoEDR: Main monitoring loop terminated.\n");
     return NULL;
@@ -563,25 +828,30 @@ int main() {
     signal(SIGTERM, sigterm_handler);
     signal(SIGINT, sigterm_handler); // Also handle Ctrl+C
 
+    // Initialize YARA engine
+    init_yara_scanner();
+
     // Load baseline hash for integrity checking
     load_baseline_hash();
     
     // Initial integrity check
     check_self_integrity();
 
-    pthread_t monitor_thread, file_thread, watchdog_t;
+    pthread_t monitor_thread, file_thread, watchdog_t, netlink_t;
 
     // Start all monitoring threads
     pthread_create(&monitor_thread, NULL, advanced_monitoring_loop, NULL);
     pthread_create(&file_thread, NULL, start_file_watcher, NULL);
     pthread_create(&watchdog_t, NULL, watchdog_thread, NULL);
+    pthread_create(&netlink_t, NULL, start_netlink_watcher, NULL);
 
-    printf("✅ All systems operational. Watchdog active.\n");
+    printf("✅ All systems operational. Watchdog and Real-Time Engine active.\n");
     
     // Wait for all threads to finish (they should respect terminate_flag)
     pthread_join(monitor_thread, NULL);
     pthread_join(file_thread, NULL);
     pthread_join(watchdog_t, NULL);
+    pthread_join(netlink_t, NULL);
 
     // Clean up process list
     pthread_mutex_lock(&proc_mutex);
@@ -593,6 +863,10 @@ int main() {
     }
     process_list = NULL;
     pthread_mutex_unlock(&proc_mutex);
+
+    if (yara_rules) yr_rules_destroy(yara_rules);
+    if (yara_compiler) yr_compiler_destroy(yara_compiler);
+    yr_finalize();
 
     printf("ZoEDR: Shutdown complete. Zeta Realm remains secured.\n");
 

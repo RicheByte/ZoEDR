@@ -48,6 +48,7 @@ typedef struct threat_score {
     int reverse_shell;
     int privilege_esc;
     int fileless_exec;
+    int memory_anomaly;
     int total;
     time_t detection_time;
 } threat_score_t;

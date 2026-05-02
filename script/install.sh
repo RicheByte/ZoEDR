@@ -36,7 +36,7 @@ if command -v apt-get >/dev/null 2>&1; then
     
     # Install core dependencies first (without kernel headers)
     echo "🔨 Installing build essentials and libraries..."
-    apt-get install -y build-essential libcurl4-openssl-dev libssl-dev curl python3 python3-pip 2>&1 | grep -v "^Get:" | grep -v "^Reading"
+    apt-get install -y build-essential libcurl4-openssl-dev libssl-dev libyara-dev curl python3 python3-pip 2>&1 | grep -v "^Get:" | grep -v "^Reading"
     
     # Try to install kernel headers, but don't fail if unavailable
     echo "🧠 Attempting to install kernel headers..."
@@ -58,21 +58,21 @@ elif command -v dnf >/dev/null 2>&1; then
     # Fedora/RHEL
     echo "🔧 Detected dnf-based system (Fedora/RHEL)"
     dnf update -y > /dev/null 2>&1
-    dnf install -y gcc make kernel-devel libcurl-devel openssl-devel curl python3 python3-pip 2>&1 | grep -v "^Last metadata"
+    dnf install -y gcc make kernel-devel libcurl-devel openssl-devel yara-devel curl python3 python3-pip 2>&1 | grep -v "^Last metadata"
     DEPS_FAILED=$?
     
 elif command -v pacman >/dev/null 2>&1; then
     # Arch Linux
     echo "🔧 Detected pacman-based system (Arch/Manjaro)"
     pacman -Sy --noconfirm > /dev/null 2>&1
-    pacman -S --noconfirm base-devel linux-headers curl python python-pip 2>&1 | grep -v "checking"
+    pacman -S --noconfirm base-devel linux-headers yara curl python python-pip 2>&1 | grep -v "checking"
     DEPS_FAILED=$?
     
 elif command -v zypper >/dev/null 2>&1; then
     # openSUSE
     echo "🔧 Detected zypper-based system (openSUSE)"
     zypper refresh > /dev/null 2>&1
-    zypper install -y gcc make kernel-devel libcurl-devel libopenssl-devel curl python3 python3-pip 2>&1 | grep -v "Loading"
+    zypper install -y gcc make kernel-devel libcurl-devel libopenssl-devel yara-devel curl python3 python3-pip 2>&1 | grep -v "Loading"
     DEPS_FAILED=$?
     
 else
@@ -152,7 +152,7 @@ if [ ! -f "src/zoedr_advanced.c" ]; then
     exit 1
 fi
 
-gcc -o "$ZOEDR_BINARY_NAME" src/zoedr_advanced.c -lpthread -lcurl -lcrypto -O2 -Wall -Wextra -Isrc/
+gcc -o "$ZOEDR_BINARY_NAME" src/zoedr_advanced.c -lpthread -lcurl -lcrypto -lyara -lm -O2 -Wall -Wextra -Isrc/
 
 if [ $? -ne 0 ]; then
     echo "❌ Userspace daemon compilation failed. Aborting."
