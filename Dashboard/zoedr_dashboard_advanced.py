@@ -18,25 +18,34 @@ ALERT_FILE = "/var/log/zoedr/alerts.json" # Consistent with zoedr_common.h
 REFRESH_INTERVAL_MS = 5000 # Refresh every 5 seconds
 MAX_ALERTS_DISPLAY = 50 # Number of latest alerts to show in the list
 
-# --- Color Palette (Modern Cybersecurity Theme) ---
+# --- Cyberpunk / Glassmorphism Theme ---
 COLOR_PALETTE = {
-    'background': '#0a0e27',
-    'card_bg': '#1a1f3a',
-    'card_border': '#2d3561',
+    'background': '#02050f',
+    'card_bg': 'rgba(15, 20, 45, 0.65)', # Semi-transparent for glassmorphism
+    'card_border': 'rgba(0, 212, 255, 0.3)',
     'text_primary': '#e8eaf6',
     'text_secondary': '#b0b8d4',
     'accent_blue': '#00d4ff',
     'accent_cyan': '#00ffea',
-    'accent_purple': '#9d4edd',
+    'accent_purple': '#b026ff',
     'severity': {
         'info': '#00d4ff',
-        'low': '#26c6da',
-        'medium': '#ffa726',
+        'low': '#00ffea',
+        'medium': '#ffea00',
         'high': '#ff5252',
-        'critical': '#d50000'
+        'critical': '#ff003c'
     },
-    'graph_bg': '#151a35',
-    'grid_color': '#2d3561'
+    'graph_bg': 'rgba(0,0,0,0)', # Transparent graph backgrounds
+    'grid_color': 'rgba(45, 53, 97, 0.4)'
+}
+
+GLASS_STYLE = {
+    'backgroundColor': COLOR_PALETTE['card_bg'],
+    'backdropFilter': 'blur(12px)',
+    'WebkitBackdropFilter': 'blur(12px)',
+    'border': f"1px solid {COLOR_PALETTE['card_border']}",
+    'boxShadow': '0 8px 32px 0 rgba(0, 212, 255, 0.1)',
+    'borderRadius': '10px'
 }
 
 # --- Helper Function to Load Alerts ---
@@ -113,12 +122,26 @@ app.layout = dbc.Container([
     dbc.Row(
         dbc.Col(
             html.Div([
-                html.H1("🐉 ZoEDR Threat Intelligence Dashboard", 
+                html.H1("⚡ ZETA REALM: SUPERHUMAN SOC COMMAND", 
                        className="text-center mb-1",
-                       style={'color': COLOR_PALETTE['accent_cyan'], 'fontWeight': '700'}),
-                html.P("Real-time Endpoint Detection & Response Monitoring",
-                      className="text-center text-muted mb-4")
+                       style={'color': COLOR_PALETTE['accent_cyan'], 'fontWeight': '800', 'letterSpacing': '2px', 'textShadow': f"0 0 15px {COLOR_PALETTE['accent_cyan']}"}),
+                html.P("Live Neural Threat Processing Engine",
+                      className="text-center mb-4", style={'color': COLOR_PALETTE['accent_purple'], 'letterSpacing': '1px'})
             ])
+        )
+    ),
+    
+    # Audio Alert Element
+    html.Audio(id='critical-alarm-audio', src='https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', preload='auto'),
+
+    # AI Analyst Feed
+    dbc.Row(
+        dbc.Col(
+            html.Div([
+                html.I(className="fas fa-brain fa-2x me-3", style={'color': COLOR_PALETTE['accent_purple'], 'textShadow': f"0 0 10px {COLOR_PALETTE['accent_purple']}"}),
+                html.Span("AI Analyst Link: ", style={'color': COLOR_PALETTE['accent_purple'], 'fontWeight': 'bold', 'fontSize': '1.2rem'}),
+                html.Span(id='ai-analyst-text', style={'color': COLOR_PALETTE['text_primary'], 'fontFamily': 'monospace', 'fontSize': '1.1rem'}),
+            ], style={**GLASS_STYLE, 'padding': '15px', 'marginBottom': '25px', 'borderLeft': f"4px solid {COLOR_PALETTE['accent_purple']}"})
         )
     ),
     
@@ -129,29 +152,27 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-shield-alt fa-2x mb-2", 
-                              style={'color': COLOR_PALETTE['accent_blue']}),
-                        html.H3(id='kpi-total-alerts', className="mb-0"),
+                               style={'color': COLOR_PALETTE['accent_blue'], 'textShadow': f"0 0 10px {COLOR_PALETTE['accent_blue']}"}),
+                        html.H3(id='kpi-total-alerts', className="mb-0", style={'fontWeight': 'bold'}),
                         html.P("Total Alerts", className="text-muted small mb-0")
                     ], className="text-center")
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                     'borderLeft': f"4px solid {COLOR_PALETTE['accent_blue']}"}, 
-               className="mb-3 shadow-sm"),
+            ], style={**GLASS_STYLE, 'borderLeft': f"4px solid {COLOR_PALETTE['accent_blue']}"}, 
+               className="mb-3"),
             md=3, sm=6
         ),
         dbc.Col(
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.I(className="fas fa-exclamation-triangle fa-2x mb-2", 
-                              style={'color': COLOR_PALETTE['severity']['critical']}),
-                        html.H3(id='kpi-critical-alerts', className="mb-0"),
+                        html.I(className="fas fa-biohazard fa-2x mb-2", 
+                               style={'color': COLOR_PALETTE['severity']['critical'], 'textShadow': f"0 0 10px {COLOR_PALETTE['severity']['critical']}"}),
+                        html.H3(id='kpi-critical-alerts', className="mb-0", style={'fontWeight': 'bold'}),
                         html.P("Critical Alerts", className="text-muted small mb-0")
                     ], className="text-center")
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg'],
-                     'borderLeft': f"4px solid {COLOR_PALETTE['severity']['critical']}"}, 
-               className="mb-3 shadow-sm"),
+            ], style={**GLASS_STYLE, 'borderLeft': f"4px solid {COLOR_PALETTE['severity']['critical']}"}, 
+               className="mb-3"),
             md=3, sm=6
         ),
         dbc.Col(
@@ -159,29 +180,27 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-server fa-2x mb-2", 
-                              style={'color': COLOR_PALETTE['accent_purple']}),
-                        html.H3(id='kpi-unique-hosts', className="mb-0"),
+                               style={'color': COLOR_PALETTE['accent_purple'], 'textShadow': f"0 0 10px {COLOR_PALETTE['accent_purple']}"}),
+                        html.H3(id='kpi-unique-hosts', className="mb-0", style={'fontWeight': 'bold'}),
                         html.P("Monitored Hosts", className="text-muted small mb-0")
                     ], className="text-center")
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg'],
-                     'borderLeft': f"4px solid {COLOR_PALETTE['accent_purple']}"}, 
-               className="mb-3 shadow-sm"),
+            ], style={**GLASS_STYLE, 'borderLeft': f"4px solid {COLOR_PALETTE['accent_purple']}"}, 
+               className="mb-3"),
             md=3, sm=6
         ),
         dbc.Col(
             dbc.Card([
                 dbc.CardBody([
                     html.Div([
-                        html.I(className="fas fa-chart-line fa-2x mb-2", 
-                              style={'color': COLOR_PALETTE['severity']['medium']}),
-                        html.H3(id='kpi-avg-score', className="mb-0"),
+                        html.I(className="fas fa-radar fa-2x mb-2", 
+                               style={'color': COLOR_PALETTE['severity']['medium'], 'textShadow': f"0 0 10px {COLOR_PALETTE['severity']['medium']}"}),
+                        html.H3(id='kpi-avg-score', className="mb-0", style={'fontWeight': 'bold'}),
                         html.P("Avg Threat Score", className="text-muted small mb-0")
                     ], className="text-center")
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg'],
-                     'borderLeft': f"4px solid {COLOR_PALETTE['severity']['medium']}"}, 
-               className="mb-3 shadow-sm"),
+            ], style={**GLASS_STYLE, 'borderLeft': f"4px solid {COLOR_PALETTE['severity']['medium']}"}, 
+               className="mb-3"),
             md=3, sm=6
         )
     ]),
@@ -192,30 +211,26 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.I(className="fas fa-chart-area me-2"),
-                    "Threat Activity Timeline"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['accent_blue']}", 
-                         'fontWeight': '600'}),
+                    html.I(className="fas fa-wave-square me-2"),
+                    "Neural Threat Topology"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['accent_blue']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     dcc.Graph(id='trend-graph', config={'displayModeBar': False})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=8),
         
-        # Severity Distribution
+        # 3D Threat Cluster Visualization
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.I(className="fas fa-pie-chart me-2"),
-                    "Severity Distribution"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['accent_purple']}", 
-                         'fontWeight': '600'}),
+                    html.I(className="fas fa-cube me-2"),
+                    "3D Threat Matrix"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['accent_purple']}", 'fontWeight': '600'}),
                 dbc.CardBody([
-                    dcc.Graph(id='severity-pie', config={'displayModeBar': False})
+                    dcc.Graph(id='severity-pie', config={'displayModeBar': False}) # Reusing ID for simplicity
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=4)
     ]),
     
@@ -226,14 +241,12 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader([
                     html.I(className="fas fa-bug me-2"),
-                    "Top Attack Vectors"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['accent_cyan']}", 
-                         'fontWeight': '600'}),
+                    "Attack Vectors"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['accent_cyan']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     dcc.Graph(id='type-graph', config={'displayModeBar': False})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=6),
         
         # Process Activity
@@ -241,14 +254,12 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader([
                     html.I(className="fas fa-cogs me-2"),
-                    "Top Flagged Processes"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['severity']['medium']}", 
-                         'fontWeight': '600'}),
+                    "Compromised Processes"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['severity']['medium']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     dcc.Graph(id='process-graph', config={'displayModeBar': False})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=6)
     ]),
     
@@ -259,14 +270,12 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader([
                     html.I(className="fas fa-calendar-alt me-2"),
-                    "Activity Heatmap (Hour × Day)"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['accent_purple']}", 
-                         'fontWeight': '600'}),
+                    "Temporal Heatmap"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['accent_purple']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     dcc.Graph(id='heatmap-graph', config={'displayModeBar': False})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=8),
         
         # Top Hosts Table
@@ -274,14 +283,12 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader([
                     html.I(className="fas fa-network-wired me-2"),
-                    "Most Targeted Hosts"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['severity']['high']}", 
-                         'fontWeight': '600'}),
+                    "Target Grid"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['severity']['high']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     html.Div(id='hosts-table', style={'maxHeight': '400px', 'overflowY': 'auto'})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow"),
+            ], style=GLASS_STYLE, className="mb-3"),
         ], md=4)
     ]),
     
@@ -290,15 +297,13 @@ app.layout = dbc.Container([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.I(className="fas fa-bell me-2"),
-                    "Recent Alerts Feed"
-                ], style={'backgroundColor': COLOR_PALETTE['card_bg'], 
-                         'borderBottom': f"2px solid {COLOR_PALETTE['severity']['critical']}", 
-                         'fontWeight': '600'}),
+                    html.I(className="fas fa-satellite-dish me-2"),
+                    "Live Telemetry Feed"
+                ], style={'backgroundColor': 'rgba(0,0,0,0)', 'borderBottom': f"1px solid {COLOR_PALETTE['severity']['critical']}", 'fontWeight': '600'}),
                 dbc.CardBody([
                     html.Div(id='alerts-container', style={'maxHeight': '500px', 'overflowY': 'auto'})
                 ])
-            ], style={'backgroundColor': COLOR_PALETTE['card_bg']}, className="mb-3 shadow")
+            ], style=GLASS_STYLE, className="mb-3")
         ])
     ]),
 
@@ -308,7 +313,12 @@ app.layout = dbc.Container([
         interval=REFRESH_INTERVAL_MS,
         n_intervals=0
     )
-], fluid=True, style={'backgroundColor': COLOR_PALETTE['background'], 'minHeight': '100vh', 'padding': '20px'})
+], fluid=True, style={
+    'backgroundColor': COLOR_PALETTE['background'],
+    'backgroundImage': 'radial-gradient(circle at 50% -20%, #151a35, #02050f)',
+    'minHeight': '100vh', 
+    'padding': '20px'
+})
 
 # --- Callbacks ---
 
@@ -317,17 +327,36 @@ app.layout = dbc.Container([
     [Output('kpi-total-alerts', 'children'),
      Output('kpi-critical-alerts', 'children'),
      Output('kpi-unique-hosts', 'children'),
-     Output('kpi-avg-score', 'children')],
+     Output('kpi-avg-score', 'children'),
+     Output('ai-analyst-text', 'children'),
+     Output('critical-alarm-audio', 'autoPlay')],
     Input('interval-component', 'n_intervals')
 )
 def update_kpis(n):
     df = load_alerts()
     kpis = calculate_kpis(df)
+    
+    # Simulated AI Analyst text
+    ai_text = "System nominal. Scanning memory regions..."
+    play_audio = False
+    
+    if not df.empty:
+        latest = df.iloc[-1]
+        if latest['severity'] == 'critical':
+            ai_text = f"CRITICAL ANOMALY: Highly evasive {latest['alert_type']} detected on {latest['host']}. Memory entropy exceeds normal thresholds. Process '{latest['process_name']}' [PID {latest['pid']}] automatically quarantined."
+            play_audio = True
+        elif latest['severity'] == 'high':
+            ai_text = f"WARNING: Suspicious {latest['alert_type']} activity via {latest['process_name']}. Analyzing lateral movement probability."
+        elif kpis['alerts_last_hour'] > 50:
+            ai_text = f"Sustained attack volume detected. {kpis['alerts_last_hour']} incidents logged in the last hour. Recommend firewall restriction."
+
     return (
         str(kpis['total_alerts']),
         str(kpis['critical_alerts']),
         str(kpis['unique_hosts']),
-        str(kpis['avg_threat_score'])
+        str(kpis['avg_threat_score']),
+        ai_text,
+        play_audio
     )
 
 # Callback to update the list of latest alerts
@@ -388,7 +417,7 @@ def update_alerts_list(n):
                         html.P(alert['details'], className="small mb-0 text-muted", 
                               style={'fontSize': '0.85em'})
                     ])
-                ], style={'backgroundColor': COLOR_PALETTE['graph_bg'],
+                ], style={**GLASS_STYLE, 
                          'borderLeft': f'4px solid {severity_color}',
                          'marginBottom': '10px'})
             )
@@ -438,34 +467,40 @@ def update_trend_graph(n):
     )
     return fig
 
-# Callback to update severity pie chart
+# Callback to update severity 3D scatter chart
 @app.callback(
     Output('severity-pie', 'figure'),
     Input('interval-component', 'n_intervals')
 )
-def update_severity_pie(n):
+def update_3d_scatter(n):
     df = load_alerts()
     if df.empty:
-        return create_empty_figure('No severity data')
+        return create_empty_figure('No active matrix data')
     
-    severity_counts = df['severity'].value_counts().reset_index()
-    severity_counts.columns = ['severity', 'count']
+    # Create a 3D scatter plot of the last 100 alerts
+    df_recent = df.tail(100).copy()
     
-    fig = go.Figure(data=[go.Pie(
-        labels=severity_counts['severity'],
-        values=severity_counts['count'],
-        hole=0.4,
-        marker=dict(colors=[COLOR_PALETTE['severity'][sev] for sev in severity_counts['severity']]),
-        textinfo='label+percent',
-        textfont=dict(size=12, color=COLOR_PALETTE['text_primary'])
-    )])
+    fig = px.scatter_3d(df_recent, 
+                        x='hour', 
+                        y='threat_score_total', 
+                        z='pid',
+                        color='severity',
+                        size_max=10,
+                        hover_name='process_name',
+                        color_discrete_map=COLOR_PALETTE['severity'])
     
     fig.update_layout(
         paper_bgcolor=COLOR_PALETTE['graph_bg'],
         plot_bgcolor=COLOR_PALETTE['graph_bg'],
         font_color=COLOR_PALETTE['text_primary'],
         showlegend=False,
-        margin=dict(l=20, r=20, t=20, b=20),
+        margin=dict(l=0, r=0, t=0, b=0),
+        scene=dict(
+            xaxis=dict(showgrid=True, gridcolor=COLOR_PALETTE['grid_color'], backgroundcolor='rgba(0,0,0,0)'),
+            yaxis=dict(showgrid=True, gridcolor=COLOR_PALETTE['grid_color'], backgroundcolor='rgba(0,0,0,0)'),
+            zaxis=dict(showgrid=True, gridcolor=COLOR_PALETTE['grid_color'], backgroundcolor='rgba(0,0,0,0)'),
+            bgcolor='rgba(0,0,0,0)'
+        ),
         height=300
     )
     return fig
